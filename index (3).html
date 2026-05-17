@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aqua — Water Reminder App</title>
+<style>
+  /* ─── FONTS ─── */
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  /* ─── DESIGN TOKENS ─── */
+  :root {
+    --bg: #eaf6ff;
+    --bg2: #d6eefa;
+    --surface: rgba(255,255,255,0.72);
+    --surface2: rgba(255,255,255,0.45);
+    --border: rgba(100,180,255,0.25);
+    --shadow: 0 8px 40px rgba(30,120,200,0.10);
+    --shadow-deep: 0 20px 60px rgba(30,100,200,0.18);
+    --text: #0d2137;
+    --text2: #3a6080;
+    --text3: #7aaac8;
+    --accent: #1a8fe3;
+    --accent2: #0fc6c2;
+    --accent3: #6c63ff;
+    --danger: #e35d5d;
+    --wave1: rgba(26,143,227,0.18);
+    --wave2: rgba(15,198,194,0.14);
+    --progress-bg: rgba(26,143,227,0.12);
+    --card-radius: 24px;
+    --nav-h: 68px;
+    --transition: .32s cubic-bezier(.4,0,.2,1);
+  }
+  [data-theme="dark"] {
+    --bg: #07131e;
+    --bg2: #0b1d2e;
+    --surface: rgba(12,30,48,0.82);
+    --surface2: rgba(12,30,48,0.55);
+    --border: rgba(26,143,227,0.18);
+    --shadow: 0 8px 40px rgba(0,0,0,0.38);
+    --shadow-deep: 0 20px 60px rgba(0,0,0,0.55);
+    --text: #dff0ff;
+    --text2: #7aaac8;
+    --text3: #3a6080;
+    --wave1: rgba(26,143,227,0.10);
+    --wave2: rgba(15,198,194,0.08);
+    --progress-bg: rgba(26,143,227,0.10);
+  }
+
+  /* ─── RESET ─── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: background var(--transition), color var(--transition);
+    overflow-x: hidden;
+  }
+
+  /* ─── LOADING SCREEN ─── */
+  #loader {
+    position: fixed; inset: 0; z-index: 9999;
+    background: linear-gradient(135deg, #1a8fe3 0%, #0fc6c2 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 20px;
+    transition: opacity .6s, visibility .6s;
+  }
+  #loader.hidden { opacity: 0; visibility: hidden; }
+  .loader-drop {
+    width: 52px; height: 70px;
+    background: rgba(255,255,255,0.92);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    position: relative;
+    animation: dropBounce 1.1s ease-in-out infinite;
+  }
+  .loader-drop::after {
+    content: '';
+    position: absolute;
+    bottom: -14px; left: 50%;
+    transform: translateX(-50%);
+    width: 34px; height: 8px;
+    background: rgba(255,255,255,0.22);
+    border-radius: 50%;
+    animation: shadow 1.1s ease-in-out infinite;
+  }
+  @keyframes dropBounce {
+    0%,100% { transform: translateY(0) scaleY(1); }
+    50% { transform: translateY(-28px) scaleY(1.06); }
+    85% { transform: translateY(4px) scaleY(0.92); }
+  }
+  @keyframes shadow {
+    0%,100% { transform: translateX(-50%) scaleX(1); opacity:.3; }
+    50% { transform: translateX(-50%) scaleX(0.6); opacity:.12; }
+  }
+  .loader-text { color: #fff; font-size: 1.1rem; letter-spacing: .12em; opacity: .85; }
+
+  /* ─── GRADIENT BG ─── */
+  .bg-gradient {
+    position: fixed; inset: 0; z-index: -1;
+    background: radial-gradient(ellipse 80% 60% at 20% 10%, rgba(26,143,227,0.13) 0%, transparent 70%),
+                radial-gradient(ellipse 70% 50% at 80% 80%, rgba(15,198,194,0.10) 0%, transparent 70%),
+                var(--bg);
+    transition: background var(--transition);
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    height: var(--nav-h);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 clamp(18px, 5vw, 48px);
+    background: var(--surface);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 20px rgba(26,143,227,0.07);
+    transition: background var(--transition), border-color var(--transition);
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.45rem; font-weight: 700;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--text); }
+  .nav-logo .drop-icon { font-size: 1.5rem; }
+  .nav-links {
+    display: flex; align-items: center; gap: 8px;
+    list-style: none;
+  }
+  .nav-links a {
+    text-decoration: none;
+    color: var(--text2);
+    font-size: .92rem; font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 50px;
+    transition: background var(--transition), color var(--transition);
+  }
+  .nav-links a:hover { background: rgba(26,143,227,0.10); color: var(--accent); }
+  .theme-toggle {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 7px 14px;
+    cursor: pointer;
+    font-size: .9rem;
+    color: var(--text2);
+    display: flex; align-items: center; gap: 6px;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+  .theme-toggle:hover { background: rgba(26,143,227,0.12); color: var(--accent); border-color: var(--accent); }
+  .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 6px; background: none; border: none; }
+  .hamburger span { width: 22px; height: 2px; background: var(--text2); border-radius: 2px; transition: all var(--transition); display: block; }
+  .mobile-menu {
+    display: none;
+    position: fixed; top: var(--nav-h); left: 0; right: 0; z-index: 99;
+    background: var(--surface);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px 20px;
+    flex-direction: column; gap: 8px;
+  }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu a {
+    text-decoration: none; color: var(--text2);
+    font-size: 1rem; font-weight: 500;
+    padding: 10px 14px; border-radius: 12px;
+    transition: background var(--transition);
+  }
+  .mobile-menu a:hover { background: rgba(26,143,227,0.10); color: var(--accent); }
+
+  /* ─── MAIN LAYOUT ─── */
+  main { padding-top: calc(var(--nav-h) + 32px); }
+  section { padding: clamp(32px, 6vw, 80px) clamp(16px, 6vw, 80px); }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* ─── HERO ─── */
+  #hero {
+    min-height: calc(100vh - var(--nav-h));
+    display: flex; align-items: center;
+    padding-top: 20px;
+    position: relative; overflow: hidden;
+  }
+  .hero-inner {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+    align-items: center; width: 100%;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .hero-text { z-index: 1; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(26,143,227,0.10);
+    border: 1px solid rgba(26,143,227,0.22);
+    border-radius: 50px; padding: 6px 14px;
+    font-size: .82rem; font-weight: 600; color: var(--accent);
+    letter-spacing: .06em; text-transform: uppercase;
+    margin-bottom: 20px;
+    animation: fadeUp .6s ease both;
+  }
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.6rem, 5.5vw, 4.2rem);
+    font-weight: 900; line-height: 1.1;
+    margin-bottom: 20px;
+    animation: fadeUp .6s .1s ease both;
+  }
+  .hero-title em { font-style: normal; color: var(--accent); }
+  .hero-desc {
+    color: var(--text2); font-size: 1.05rem; line-height: 1.7;
+    margin-bottom: 36px;
+    animation: fadeUp .6s .2s ease both;
+  }
+  .hero-cta {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    animation: fadeUp .6s .3s ease both;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    color: #fff; border: none; border-radius: 50px;
+    padding: 14px 30px; font-size: .97rem; font-weight: 600;
+    cursor: pointer; letter-spacing: .02em;
+    box-shadow: 0 8px 28px rgba(26,143,227,0.30);
+    transition: transform .2s, box-shadow .2s, filter .2s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(26,143,227,0.40); filter: brightness(1.07); }
+  .btn-secondary {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 50px; padding: 14px 30px;
+    font-size: .97rem; font-weight: 600; color: var(--text2);
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    transition: all var(--transition);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); background: rgba(26,143,227,0.07); }
+
+  /* hero visual */
+  .hero-visual {
+    display: flex; justify-content: center; align-items: center;
+    animation: fadeUp .7s .15s ease both;
+    position: relative;
+  }
+  .bottle-wrap {
+    position: relative; width: 200px; height: 320px;
+    animation: float 3.4s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-18px); }
+  }
+  .bottle-body {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 280px;
+    background: rgba(255,255,255,0.22);
+    border: 2px solid rgba(255,255,255,0.45);
+    border-radius: 20px 20px 30px 30px;
+    backdrop-filter: blur(8px);
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(26,143,227,0.18), inset 0 0 30px rgba(255,255,255,0.08);
+  }
+  .bottle-cap {
+    position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+    width: 50px; height: 24px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px 8px 4px 4px;
+  }
+  .bottle-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, rgba(26,143,227,0.55) 0%, rgba(15,198,194,0.75) 100%);
+    height: 55%;
+    transition: height 1s cubic-bezier(.4,0,.2,1);
+    overflow: hidden;
+  }
+  .bottle-wave {
+    position: absolute; top: -18px; left: -30px; right: -30px; height: 36px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 50%;
+    animation: waveMove 2s ease-in-out infinite;
+  }
+  .bottle-wave:nth-child(2) { top: -12px; animation-delay: .5s; opacity: .5; }
+  @keyframes waveMove {
+    0%,100% { transform: translateX(0) scaleX(1); }
+    50% { transform: translateX(10px) scaleX(1.08); }
+  }
+  .hero-orbs { position: absolute; inset: 0; pointer-events: none; }
+  .orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(50px);
+  }
+  .orb1 { width: 220px; height: 220px; background: rgba(26,143,227,0.18); top: -20px; right: -40px; }
+  .orb2 { width: 160px; height: 160px; background: rgba(15,198,194,0.14); bottom: 20px; right: 40px; }
+  .orb3 { width: 100px; height: 100px; background: rgba(108,99,255,0.12); top: 60px; left: 0; }
+
+  /* ─── QUOTE TICKER ─── */
+  .quote-strip {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    padding: 18px clamp(16px, 5vw, 60px);
+    text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .quote-text {
+    color: #fff; font-size: 1rem; font-weight: 500;
+    opacity: 1; transition: opacity .5s;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+  }
+  .quote-text.fade { opacity: 0; }
+  .quote-icon { font-size: 1.3rem; }
+
+  /* ─── TRACKER SECTION ─── */
+  #tracker { background: transparent; }
+  .section-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: .78rem; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+    font-weight: 900; margin-bottom: 8px;
+  }
+  .section-sub { color: var(--text2); font-size: 1rem; margin-bottom: 40px; }
+  .tracker-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 24px; align-items: start;
+  }
+
+  /* glass card */
+  .glass-card {
+    background: var(--surface);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 28px;
+    transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+  }
+  .glass-card:hover { box-shadow: var(--shadow-deep); }
+
+  /* progress ring */
+  .progress-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
+  }
+  .ring-container {
+    position: relative; width: 200px; height: 200px;
+  }
+  .ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--progress-bg); stroke-width: 10; }
+  .ring-fill {
+    fill: none;
+    stroke: url(#ringGrad);
+    stroke-width: 10;
+    stroke-linecap: round;
+    stroke-dasharray: 565; stroke-dashoffset: 565;
+    transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);
+  }
+  .ring-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+  }
+  .ring-amount {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem; font-weight: 900; color: var(--accent);
+    line-height: 1;
+  }
+  .ring-unit { font-size: .78rem; color: var(--text3); font-weight: 600; }
+  .ring-goal { font-size: .82rem; color: var(--text2); }
+  .ring-pct { font-size: 1.1rem; font-weight: 700; color: var(--accent2); }
+  .progress-bar-wrap {
+    width: 100%;
+  }
+  .progress-bar-label {
+    display: flex; justify-content: space-between;
+    font-size: .82rem; color: var(--text2); margin-bottom: 8px;
+  }
+  .progress-bar-track {
+    width: 100%; height: 10px; border-radius: 50px;
+    background: var(--progress-bg);
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; border-radius: 50px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 1s cubic-bezier(.4,0,.2,1);
+    position: relative;
+  }
+  .progress-bar-fill::after {
+    content: '';
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: 30px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35));
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+  @keyframes shimmer { 0%,100%{opacity:0} 50%{opacity:1} }
+  .stats-row {
+    display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+  }
+  .stat-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 10px 18px;
+    text-align: center;
+    min-width: 90px;
+  }
+  .stat-chip .val {
+    font-size: 1.1rem; font-weight: 700; color: var(--accent);
+    font-family: 'Playfair Display', serif;
+  }
+  .stat-chip .lbl { font-size: .72rem; color: var(--text3); margin-top: 2px; }
+
+  /* add water buttons */
+  .add-card { display: flex; flex-direction: column; gap: 20px; }
+  .add-card h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem; color: var(--text);
+  }
+  .add-card h3 span { color: var(--text2); font-size: .82rem; font-family: 'DM Sans', sans-serif; font-weight: 400; }
+  .water-btns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  }
+  .water-btn {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 18px 12px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: all var(--transition);
+    color: var(--text);
+    position: relative; overflow: hidden;
+  }
+  .water-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    opacity: 0; transition: opacity var(--transition);
+  }
+  .water-btn:hover::before { opacity: .09; }
+  .water-btn:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,143,227,0.15); }
+  .water-btn:active { transform: scale(.96); }
+  .water-btn .drop { font-size: 1.8rem; position: relative; z-index: 1; }
+  .water-btn .ml { font-size: 1rem; font-weight: 700; color: var(--accent); position: relative; z-index: 1; }
+  .water-btn .desc { font-size: .72rem; color: var(--text3); position: relative; z-index: 1; }
+  .custom-add {
+    display: flex; gap: 10px; align-items: center;
+  }
+  .custom-input {
+    flex: 1; background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 14px; padding: 12px 16px;
+    font-size: .95rem; color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color var(--transition);
+  }
+  .custom-input:focus { border-color: var(--accent); }
+  .custom-input::placeholder { color: var(--text3); }
+  .btn-add-custom {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 14px;
+    padding: 12px 20px; color: #fff; font-weight: 600;
+    cursor: pointer; font-size: .92rem;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+  .btn-add-custom:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+  .goal-row { display: flex; flex-direction: column; gap: 8px; }
+  .goal-row label { font-size: .85rem; color: var(--text2); font-weight: 500; }
+  .goal-select {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 14px; padding: 11px 16px;
+    font-size: .95rem; color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    outline: none; cursor: pointer;
+    transition: border-color var(--transition);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237aaac8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+  .goal-select:focus { border-color: var(--accent); }
+
+  .reminder-box {
+    background: linear-gradient(135deg, rgba(26,143,227,0.08), rgba(15,198,194,0.06));
+    border: 1px solid rgba(26,143,227,0.18);
+    border-radius: 18px; padding: 16px 20px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .reminder-icon { font-size: 1.6rem; }
+  .reminder-text { flex: 1; }
+  .reminder-text strong { display: block; font-size: .92rem; color: var(--text); margin-bottom: 2px; }
+  .reminder-text span { font-size: .78rem; color: var(--text2); }
+  .reminder-toggle {
+    position: relative; width: 44px; height: 24px;
+    flex-shrink: 0;
+  }
+  .reminder-toggle input { opacity: 0; width: 0; height: 0; }
+  .reminder-slider {
+    position: absolute; inset: 0;
+    background: var(--progress-bg);
+    border-radius: 50px; cursor: pointer;
+    transition: background var(--transition);
+    border: 1px solid var(--border);
+  }
+  .reminder-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    border-radius: 50%; background: #fff;
+    top: 2px; left: 2px;
+    transition: transform var(--transition);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  }
+  .reminder-toggle input:checked ~ .reminder-slider { background: var(--accent); border-color: var(--accent); }
+  .reminder-toggle input:checked ~ .reminder-slider::before { transform: translateX(20px); }
+
+  .btn-reset {
+    background: rgba(227,93,93,0.08);
+    border: 1.5px solid rgba(227,93,93,0.22);
+    border-radius: 14px; padding: 12px 20px;
+    color: var(--danger); font-weight: 600;
+    cursor: pointer; font-size: .9rem;
+    transition: all var(--transition);
+    display: flex; align-items: center; gap: 8px;
+    justify-content: center;
+  }
+  .btn-reset:hover { background: rgba(227,93,93,0.14); border-color: var(--danger); transform: translateY(-1px); }
+
+  /* ─── HISTORY ─── */
+  #history { padding-top: 0; }
+  .history-list { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+  .history-list::-webkit-scrollbar { width: 4px; }
+  .history-list::-webkit-scrollbar-track { background: transparent; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .history-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 18px;
+    animation: slideIn .3s ease;
+    transition: background var(--transition);
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+  .history-item:hover { background: rgba(26,143,227,0.05); }
+  .history-left { display: flex; align-items: center; gap: 12px; }
+  .history-dot {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+  .history-info strong { font-size: .9rem; color: var(--text); display: block; }
+  .history-info span { font-size: .75rem; color: var(--text3); }
+  .history-ml { font-size: 1rem; font-weight: 700; color: var(--accent); font-family: 'Playfair Display', serif; }
+  .empty-history {
+    text-align: center; padding: 40px 20px;
+    color: var(--text3); font-size: .95rem;
+  }
+  .empty-history .big-drop { font-size: 3rem; margin-bottom: 12px; }
+
+  /* notification toast */
+  #toast {
+    position: fixed; bottom: 28px; right: 28px; z-index: 9998;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px; padding: 16px 22px;
+    box-shadow: var(--shadow-deep);
+    display: flex; align-items: center; gap: 14px;
+    transform: translateY(120px) scale(.95);
+    opacity: 0;
+    transition: all .4s cubic-bezier(.4,0,.2,1);
+    max-width: 320px;
+    backdrop-filter: blur(20px);
+  }
+  #toast.show { transform: none; opacity: 1; }
+  .toast-icon { font-size: 1.6rem; flex-shrink: 0; }
+  .toast-body strong { display: block; font-size: .9rem; color: var(--text); }
+  .toast-body span { font-size: .78rem; color: var(--text2); }
+  .toast-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--text3); font-size: 1.1rem;
+    padding: 2px; border-radius: 6px;
+    transition: color var(--transition);
+    margin-left: 4px;
+  }
+  .toast-close:hover { color: var(--text); }
+
+  /* ─── WATER WAVE SECTION ─── */
+  .wave-divider { position: relative; height: 80px; overflow: hidden; }
+  .wave-divider svg { position: absolute; bottom: 0; width: 100%; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 40px clamp(16px, 6vw, 80px) 28px;
+    text-align: center;
+    backdrop-filter: blur(20px);
+  }
+  .footer-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem; font-weight: 900;
+    color: var(--accent); margin-bottom: 10px;
+  }
+  .footer-desc { color: var(--text2); font-size: .88rem; margin-bottom: 24px; max-width: 400px; margin-left: auto; margin-right: auto; }
+  .footer-links { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
+  .footer-links a { color: var(--text3); text-decoration: none; font-size: .85rem; transition: color var(--transition); }
+  .footer-links a:hover { color: var(--accent); }
+  .footer-copy { color: var(--text3); font-size: .78rem; }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 860px) {
+    .hero-inner { grid-template-columns: 1fr; text-align: center; gap: 32px; }
+    .hero-cta { justify-content: center; }
+    .hero-visual { order: -1; }
+    .tracker-grid { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+    .hamburger { display: flex; }
+  }
+  @media (max-width: 540px) {
+    .water-btns { grid-template-columns: repeat(2, 1fr); }
+    .stats-row { gap: 10px; }
+    .stat-chip { min-width: 70px; }
+    #toast { right: 12px; bottom: 12px; left: 12px; max-width: none; }
+  }
+
+  /* ─── RIPPLE ─── */
+  .ripple-wrap { position: relative; overflow: hidden; }
+  .ripple {
+    position: absolute; border-radius: 50%;
+    background: rgba(26,143,227,0.25);
+    transform: scale(0); animation: rippleAnim .6s linear forwards;
+    pointer-events: none;
+  }
+  @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loader">
+  <div class="loader-drop"></div>
+  <div class="loader-text">Loading Aqua…</div>
+</div>
+
+<!-- BG -->
+<div class="bg-gradient"></div>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo"><span class="drop-icon">💧</span>Aqua<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="#hero">Home</a></li>
+    <li><a href="#tracker">Tracker</a></li>
+    <li><a href="#history">History</a></li>
+  </ul>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <span id="themeIcon">🌙</span>
+      <span id="themeLabel">Dark</span>
+    </button>
+    <button class="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#hero" onclick="toggleMenu()">🏠 Home</a>
+  <a href="#tracker" onclick="toggleMenu()">💧 Tracker</a>
+  <a href="#history" onclick="toggleMenu()">📋 History</a>
+</div>
+
+<main>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-inner container">
+    <div class="hero-text">
+      <div class="hero-badge">💧 Stay Hydrated</div>
+      <h1 class="hero-title">
+        Your daily<br><em>water habit</em><br>starts here.
+      </h1>
+      <p class="hero-desc">
+        Aqua helps you track your daily water intake, set hydration goals, and receive smart reminders — so you never forget to drink up.
+      </p>
+      <div class="hero-cta">
+        <button class="btn-primary" onclick="document.getElementById('tracker').scrollIntoView({behavior:'smooth'})">Start Tracking 💧</button>
+        <button class="btn-secondary" onclick="document.getElementById('history').scrollIntoView({behavior:'smooth'})">View History →</button>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-orbs">
+        <div class="orb orb1"></div>
+        <div class="orb orb2"></div>
+        <div class="orb orb3"></div>
+      </div>
+      <div class="bottle-wrap">
+        <div class="bottle-cap"></div>
+        <div class="bottle-body" id="heroBotBody">
+          <div class="bottle-fill" id="heroFill">
+            <div class="bottle-wave"></div>
+            <div class="bottle-wave"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QUOTE STRIP -->
+<div class="quote-strip">
+  <div class="quote-text" id="quoteText">
+    <span class="quote-icon">✨</span>
+    <span id="quoteBody">Loading your motivation…</span>
+    <span class="quote-icon">✨</span>
+  </div>
+</div>
+
+<!-- TRACKER -->
+<section id="tracker">
+  <div class="container">
+    <div class="section-label">💧 Your Progress</div>
+    <h2 class="section-title">Today's Hydration</h2>
+    <p class="section-sub">Track every sip. Stay ahead of your goal.</p>
+
+    <div class="tracker-grid">
+
+      <!-- LEFT: Progress -->
+      <div class="glass-card">
+        <div class="progress-wrap">
+          <div class="ring-container">
+            <svg class="ring-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#1a8fe3"/>
+                  <stop offset="100%" stop-color="#0fc6c2"/>
+                </linearGradient>
+              </defs>
+              <circle class="ring-bg" cx="100" cy="100" r="90"/>
+              <circle class="ring-fill" id="ringFill" cx="100" cy="100" r="90"/>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-amount" id="ringAmount">0</div>
+              <div class="ring-unit">ml consumed</div>
+              <div class="ring-goal" id="ringGoal">of 2500 ml</div>
+              <div class="ring-pct" id="ringPct">0%</div>
+            </div>
+          </div>
+
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-label">
+              <span>Daily goal progress</span>
+              <span id="barPct">0%</span>
+            </div>
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div class="stats-row">
+            <div class="stat-chip">
+              <div class="val" id="statTotal">0</div>
+              <div class="lbl">ml today</div>
+            </div>
+            <div class="stat-chip">
+              <div class="val" id="statRemain">2500</div>
+              <div class="lbl">ml left</div>
+            </div>
+            <div class="stat-chip">
+              <div class="val" id="statCups">0</div>
+              <div class="lbl">cups (250ml)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Add Water -->
+      <div class="glass-card add-card">
+        <div>
+          <h3>Add Water Intake <span>— tap to log</span></h3>
+        </div>
+
+        <div class="water-btns">
+          <button class="water-btn ripple-wrap" onclick="addWater(100, this)">
+            <div class="drop">🫧</div>
+            <div class="ml">100 ml</div>
+            <div class="desc">Small sip</div>
+          </button>
+          <button class="water-btn ripple-wrap" onclick="addWater(250, this)">
+            <div class="drop">☕</div>
+            <div class="ml">250 ml</div>
+            <div class="desc">One cup</div>
+          </button>
+          <button class="water-btn ripple-wrap" onclick="addWater(500, this)">
+            <div class="drop">🥤</div>
+            <div class="ml">500 ml</div>
+            <div class="desc">Half bottle</div>
+          </button>
+          <button class="water-btn ripple-wrap" onclick="addWater(1000, this)">
+            <div class="drop">🍶</div>
+            <div class="ml">1000 ml</div>
+            <div class="desc">Full bottle</div>
+          </button>
+        </div>
+
+        <div class="custom-add">
+          <input class="custom-input" type="number" id="customMl" placeholder="Custom amount (ml)" min="1" max="5000" />
+          <button class="btn-add-custom" onclick="addCustomWater()">+ Add</button>
+        </div>
+
+        <div class="goal-row">
+          <label for="goalSelect">🎯 Daily Goal</label>
+          <select class="goal-select" id="goalSelect" onchange="updateGoal()">
+            <option value="1500">1,500 ml (light)</option>
+            <option value="2000">2,000 ml (moderate)</option>
+            <option value="2500" selected>2,500 ml (standard)</option>
+            <option value="3000">3,000 ml (active)</option>
+            <option value="3500">3,500 ml (athlete)</option>
+          </select>
+        </div>
+
+        <div class="reminder-box">
+          <div class="reminder-icon">⏰</div>
+          <div class="reminder-text">
+            <strong>Hydration Reminders</strong>
+            <span id="reminderStatus">Off — toggle to enable</span>
+          </div>
+          <label class="reminder-toggle">
+            <input type="checkbox" id="reminderToggle" onchange="toggleReminder()" />
+            <span class="reminder-slider"></span>
+          </label>
+        </div>
+
+        <button class="btn-reset" onclick="resetProgress()">
+          🔄 Reset Today's Progress
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HISTORY -->
+<section id="history">
+  <div class="container">
+    <div class="section-label">📋 Log</div>
+    <h2 class="section-title">Intake History</h2>
+    <p class="section-sub">Every sip logged, every drop counted.</p>
+    <div class="glass-card">
+      <div class="history-list" id="historyList">
+        <div class="empty-history">
+          <div class="big-drop">💧</div>
+          <p>No entries yet — start drinking!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- TOAST -->
+<div id="toast">
+  <div class="toast-icon" id="toastIcon">💧</div>
+  <div class="toast-body">
+    <strong id="toastTitle">Reminder</strong>
+    <span id="toastMsg">Time to hydrate!</span>
+  </div>
+  <button class="toast-close" onclick="hideToast()">✕</button>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">💧 Aqua</div>
+  <p class="footer-desc">Your personal hydration companion. Stay consistent, stay hydrated, stay healthy.</p>
+  <div class="footer-links">
+    <a href="#hero">Home</a>
+    <a href="#tracker">Tracker</a>
+    <a href="#history">History</a>
+  </div>
+  <p class="footer-copy">© 2025 Aqua Water Reminder App · Built with 💧 and care</p>
+</footer>
+
+<script>
+// ─── STATE ───
+let state = {
+  total: 0,
+  goal: 2500,
+  history: [],
+  reminderInterval: null,
+  theme: 'light'
+};
+
+// ─── QUOTES ───
+const quotes = [
+  "Water is the driving force of all nature. — Leonardo da Vinci",
+  "Thousands have lived without love, not one without water. — W.H. Auden",
+  "Drink water and move your body — it's free medicine.",
+  "Every cell in your body thanks you for staying hydrated. 💙",
+  "A glass of water a day keeps the fatigue away.",
+  "Hydration is the foundation of every great achievement.",
+  "Your brain is 75% water — keep it flowing!",
+  "Drink before you feel thirsty — thirst is already dehydration.",
+  "Small sips, big health. Consistency beats intensity.",
+  "The secret to glowing skin? Water, water, and more water."
+];
+let quoteIdx = 0;
+
+function showNextQuote() {
+  const el = document.getElementById('quoteBody');
+  const wrap = document.getElementById('quoteText');
+  wrap.classList.add('fade');
+  setTimeout(() => {
+    quoteIdx = (quoteIdx + 1) % quotes.length;
+    el.textContent = quotes[quoteIdx];
+    wrap.classList.remove('fade');
+  }, 500);
+}
+
+// ─── LOADER ───
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hidden');
+  }, 1400);
+  loadFromStorage();
+  document.getElementById('quoteBody').textContent = quotes[0];
+  setInterval(showNextQuote, 5000);
+  updateUI();
+});
+
+// ─── ADD WATER ───
+function addWater(ml, btn) {
+  state.total = Math.min(state.total + ml, state.goal * 1.5);
+  const now = new Date();
+  state.history.unshift({
+    ml,
+    time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    date: now.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  });
+  saveToStorage();
+  updateUI();
+  if (btn) addRipple(btn);
+  const emoji = ml <= 100 ? '🫧' : ml <= 250 ? '☕' : ml <= 500 ? '🥤' : '🍶';
+  showToast(emoji, `+${ml} ml added!`, `Total: ${state.total} ml — keep it up! 💪`);
+  if (state.total >= state.goal) {
+    setTimeout(() => showToast('🎉', 'Goal Reached!', `You've hit your ${state.goal} ml goal today! Amazing!`), 1200);
+  }
+}
+
+function addCustomWater() {
+  const input = document.getElementById('customMl');
+  const val = parseInt(input.value);
+  if (!val || val < 1 || val > 5000) {
+    showToast('⚠️', 'Invalid amount', 'Please enter a value between 1 and 5000 ml.');
+    return;
+  }
+  addWater(val, null);
+  input.value = '';
+}
+
+// ─── UPDATE UI ───
+function updateUI() {
+  const pct = Math.min((state.total / state.goal) * 100, 100);
+  const remain = Math.max(state.goal - state.total, 0);
+  const cups = Math.floor(state.total / 250);
+
+  // ring
+  const circ = 2 * Math.PI * 90;
+  const offset = circ * (1 - pct / 100);
+  document.getElementById('ringFill').style.strokeDasharray = circ;
+  document.getElementById('ringFill').style.strokeDashoffset = offset;
+  document.getElementById('ringAmount').textContent = state.total;
+  document.getElementById('ringGoal').textContent = `of ${state.goal} ml`;
+  document.getElementById('ringPct').textContent = Math.round(pct) + '%';
+
+  // bar
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('barPct').textContent = Math.round(pct) + '%';
+
+  // stats
+  document.getElementById('statTotal').textContent = state.total;
+  document.getElementById('statRemain').textContent = remain;
+  document.getElementById('statCups').textContent = cups;
+
+  // hero bottle
+  document.getElementById('heroFill').style.height = Math.min(pct, 92) + '%';
+
+  // history
+  renderHistory();
+}
+
+// ─── HISTORY ───
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (state.history.length === 0) {
+    list.innerHTML = `<div class="empty-history"><div class="big-drop">💧</div><p>No entries yet — start drinking!</p></div>`;
+    return;
+  }
+  const emojis = { 100: '🫧', 250: '☕', 500: '🥤', 1000: '🍶' };
+  list.innerHTML = state.history.map(h => {
+    const e = emojis[h.ml] || '💧';
+    const label = h.ml <= 150 ? 'Small sip' : h.ml <= 300 ? 'Cup' : h.ml <= 600 ? 'Bottle half' : h.ml >= 900 ? 'Full bottle' : 'Custom';
+    return `<div class="history-item">
+      <div class="history-left">
+        <div class="history-dot">${e}</div>
+        <div class="history-info">
+          <strong>${label}</strong>
+          <span>${h.date} · ${h.time}</span>
+        </div>
+      </div>
+      <div class="history-ml">+${h.ml} ml</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── GOAL ───
+function updateGoal() {
+  state.goal = parseInt(document.getElementById('goalSelect').value);
+  saveToStorage();
+  updateUI();
+  showToast('🎯', 'Goal updated!', `Your new daily goal: ${state.goal} ml`);
+}
+
+// ─── RESET ───
+function resetProgress() {
+  if (!confirm('Reset today\'s progress? This will clear all entries.')) return;
+  state.total = 0;
+  state.history = [];
+  saveToStorage();
+  updateUI();
+  showToast('🔄', 'Progress reset!', 'Starting fresh — you got this!');
+}
+
+// ─── THEME ───
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeIcon').textContent = isDark ? '🌙' : '☀️';
+  document.getElementById('themeLabel').textContent = isDark ? 'Dark' : 'Light';
+  localStorage.setItem('aqua-theme', isDark ? 'light' : 'dark');
+}
+
+// ─── REMINDER ───
+function toggleReminder() {
+  const on = document.getElementById('reminderToggle').checked;
+  const status = document.getElementById('reminderStatus');
+  if (on) {
+    status.textContent = 'On — reminders every 30 min';
+    showToast('⏰', 'Reminders On!', 'You\'ll be reminded every 30 minutes to drink water.');
+    state.reminderInterval = setInterval(() => {
+      showToast('💧', 'Time to Hydrate!', `Don't forget to drink water. Total today: ${state.total} ml`);
+    }, 30 * 60 * 1000); // 30 min; for demo: use 30000 (30s)
+    // DEMO: uncomment next line for quick demo
+    // state.reminderInterval = setInterval(() => { showToast('💧', 'Time to Hydrate!', `Don't forget to drink water. Total today: ${state.total} ml`); }, 15000);
+  } else {
+    status.textContent = 'Off — toggle to enable';
+    clearInterval(state.reminderInterval);
+  }
+}
+
+// ─── TOAST ───
+let toastTimer = null;
+function showToast(icon, title, msg) {
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastTitle').textContent = title;
+  document.getElementById('toastMsg').textContent = msg;
+  const toast = document.getElementById('toast');
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 4000);
+}
+function hideToast() {
+  document.getElementById('toast').classList.remove('show');
+}
+
+// ─── MENU ───
+function toggleMenu() {
+  document.getElementById('mobileMenu').classList.toggle('open');
+}
+
+// ─── RIPPLE ───
+function addRipple(btn) {
+  const r = document.createElement('span');
+  r.className = 'ripple';
+  const size = Math.max(btn.offsetWidth, btn.offsetHeight);
+  r.style.width = r.style.height = size + 'px';
+  r.style.left = (btn.offsetWidth / 2 - size / 2) + 'px';
+  r.style.top = (btn.offsetHeight / 2 - size / 2) + 'px';
+  btn.appendChild(r);
+  setTimeout(() => r.remove(), 700);
+}
+
+// ─── STORAGE ───
+function saveToStorage() {
+  try {
+    localStorage.setItem('aqua-state', JSON.stringify({ total: state.total, goal: state.goal, history: state.history.slice(0, 50) }));
+  } catch(e) {}
+}
+function loadFromStorage() {
+  try {
+    const saved = localStorage.getItem('aqua-state');
+    if (saved) {
+      const d = JSON.parse(saved);
+      state.total = d.total || 0;
+      state.goal = d.goal || 2500;
+      state.history = d.history || [];
+      document.getElementById('goalSelect').value = state.goal;
+    }
+    const theme = localStorage.getItem('aqua-theme');
+    if (theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      document.getElementById('themeIcon').textContent = theme === 'dark' ? '☀️' : '🌙';
+      document.getElementById('themeLabel').textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }
+  } catch(e) {}
+}
+
+// close mobile menu on outside click
+document.addEventListener('click', e => {
+  const menu = document.getElementById('mobileMenu');
+  if (menu.classList.contains('open') && !menu.contains(e.target) && !e.target.closest('.hamburger')) {
+    menu.classList.remove('open');
+  }
+});
+
+// Enter key on custom input
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('customMl').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addCustomWater();
+  });
+});
+</script>
+</body>
+</html>
